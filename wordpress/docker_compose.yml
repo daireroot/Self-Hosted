@@ -1,0 +1,82 @@
+version: "3.7"
+
+services:
+  wordpress:
+    image: wordpress
+    container_name: wp
+    restart: always
+    init: true
+    depends_on:
+      - mariadb
+      - redis
+    environment:
+      WORDPRESS_DB_HOST: mariadb
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+    volumes:
+      - ./wp:/var/www/html
+      - ./plugins:/var/www/html/wp-content/plugins
+      - ./themes:/var/www/html/wp-content/themes
+      - ./uploads:/var/www/html/wp-content/uploads
+      - ./wp-config.php:/var/www/html/wp-config.php
+    networks:
+      - proxy
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.nextcloud.loadbalancer.server.port=80
+      - traefik.http.routers.nextcloud.entrypoints=web
+      - traefik.http.routers.nextcloud.rule=Host(`${FQDN}`)
+      - traefik.http.middlewares.nextcloud-https-redirect.redirectscheme.scheme=websecure
+      - traefik.http.routers.nextcloud.middlewares=nextcloud-https-redirect
+      - traefik.http.routers.nextcloud-secure.entrypoints=websecure
+      - traefik.http.routers.nextcloud-secure.rule=Host(`${FQDN}`)
+      - traefik.http.routers.nextcloud-secure.tls=true
+      - traefik.http.routers.nextcloud-secure.tls.certresolver=letsencrypt
+  
+  mariadb:
+    image: mariadb
+    container_name: wp_mariadb
+    restart: always
+    init: true
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - ./wp_mariadb:/var/lib/mysql
+    networks:
+      - internal
+
+  redis:
+    image: redis:6
+    container_name: wp_redis
+    restart: always
+    init: true
+    depends_on:
+      - mariadb
+    volumes:
+      - ./wp_redis:/data
+    networks:
+      - internal
+
+  myadmin:
+    image: phpmyadmin
+    container_name: wp_admin_db
+    restart: always
+    depends_on:
+      - mariadb
+    ports:
+      - "82:82"
+    networks:
+      - proxy
+      - internal
+    environment:
+      - PMA_ARBITRARY=1
+
+networks:
+  internal: {}
+  proxy:
+    external: true

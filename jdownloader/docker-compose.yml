@@ -1,0 +1,22 @@
+
+version: '3'
+
+services:
+  jdownloader:
+    image: jlesage/jdownloader-2:latest
+    container_name: jdownloader
+    ports:
+      - "5800:5800"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Madrid
+      - KEEP_APP_RUNNING=1
+      - CLEAN_TMP_DIR=1
+      - VNC_PASSWORD=$VNC_PASSWORD
+      - JDOWNLOADER_DEVICE_NAME=JDownloader
+      - JDOWNLOADER_DISPLAY_WIDTH=1280
+      - JDOWNLOADER_DISPLAY_HEIGHT=720
+    volumes:
+      - ./config:/config
+      - ./output:/output

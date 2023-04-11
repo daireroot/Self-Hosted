@@ -1,0 +1,1 @@
+Docker Compose para Jdownloader, en este caso uso el plugin para navegador o la aplicacion de Android MyJdownloader para controlarlo remotamente en vez de exponerlo via web.

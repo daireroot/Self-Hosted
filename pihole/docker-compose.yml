@@ -1,0 +1,56 @@
+version: "3"
+services:
+  pihole:
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    restart: unless-stopped
+    cap_add:
+        - NET_ADMIN
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    environment:
+      WEBPASSWORD: 'password'
+      TZ: 'Europe/Madrid'
+      ServerIP: 192.168.1.131
+      DNS1: 1.1.1.1
+      DNS2: 1.0.0.1
+      VIRTUAL_HOST: pi.hole
+      DNSMASQ_LISTENING: all
+    volumes:
+      - './etc-pihole/:/etc/pihole/'
+      - './etc-dnsmasq.d/:/etc/dnsmasq.d/'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.pihole.loadbalancer.server.port=80"
+      - "traefik.http.routers.pihole.entrypoints=web"
+      - "traefik.http.routers.pihole.rule=Host(`${FQDN}`)"
+      - "traefik.http.middlewares.pihole-https-redirect.redirectscheme.scheme=websecure"
+      - "traefik.http.routers.pihole.middlewares=pihole-https-redirect"
+      - "traefik.http.routers.pihole-secure.entrypoints=websecure"
+      - "traefik.http.routers.pihole-secure.rule=Host(`${FQDN}`)"
+      - "traefik.http.routers.pihole-secure.tls=true"
+    depends_on:
+      - dhcphelper
+    networks:
+      backend:
+        ipv4_address: '172.31.0.100'
+      proxy: {}
+
+  dhcphelper:
+    build: ./dhcp-helper
+    restart: unless-stopped
+    network_mode: "host"
+    command: -s 172.31.0.100
+    cap_add:
+      - NET_ADMIN
+
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
+  proxy:
+    external: true
