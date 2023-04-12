@@ -1,0 +1,45 @@
+version: '3'
+
+networks:
+  internal:
+    external: true
+  proxy:
+    external: true
+
+services:
+
+  memcached:
+    image: memcached:latest
+    restart: always
+    networks:
+      - internal
+
+  seafile:
+    image: seafileltd/seafile-mc:latest
+    restart: always
+    depends_on:
+      - memcached
+    environment:
+      - DB_HOST=172.30.0.10
+      - DB_ROOT_PASSWD=password
+      - DB_USER=user
+      - DB_USER_PASSWD=password
+      - SEAFILE_ADMIN_EMAIL=ejemplo@ejemplo.com
+      - SEAFILE_ADMIN_PASSWORD=password
+      - SERVICE_URL=https://ejemplo.com
+      - FILE_SERVER_ROOT=https://ejemplo.com/seafhttp
+    volumes:
+      - ./shared:/shared
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.services.seafile.loadbalancer.server.port=80'
+      - 'traefik.http.routers.seafile.entrypoints=web'
+      - 'traefik.http.routers.seafile.rule=Host(`${FQDN}`)'
+      - 'traefik.http.middlewares.seafile-https-redirect.redirectscheme.scheme=websecure'
+      - 'traefik.http.routers.seafile.middlewares=seafile-https-redirect'
+      - 'traefik.http.routers.seafile-secure.entrypoints=websecure'
+      - 'traefik.http.routers.seafile-secure.rule=Host(`${FQDN}`)'
+      - 'traefik.http.routers.seafile-secure.tls=true'
+    networks:
+      - internal
+      - proxy

@@ -1,0 +1,43 @@
+
+version: '3'
+
+networks:
+  internal:
+    name: internal
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.30.0.0/24"
+          gateway: "172.30.0.1"
+
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - MYSQL_ROOT_PASSWORD=password
+    volumes:
+      - ./db_data:/config
+    ports:
+      - "3306:3306"
+    networks:
+      internal:
+        ipv4_address: 172.30.0.10
+
+  phpmyadmin:
+    image: lscr.io/linuxserver/phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: unless-stopped
+    environment:
+      - PMA_HOST=mariadb
+    ports:
+      - "82:82"
+    depends_on:
+      - mariadb
+    networks:
+      internal:
+        ipv4_address: 172.30.0.11
