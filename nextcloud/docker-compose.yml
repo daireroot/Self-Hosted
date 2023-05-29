@@ -47,8 +47,7 @@ services:
 #      - "traefik.http.middlewares.nextcloud-chain.chain.middlewares=https-redirect@file,nex>
 #      - "traefik.http.routers.nextcloud-secure.middlewares=basicauth"
       - "traefik.http.middlewares.nextcloud-https-redirect.redirectscheme.scheme=https"
-
- depends_on:
+    depends_on:
       - app
     networks:
       - internal
