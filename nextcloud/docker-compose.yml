@@ -2,64 +2,95 @@ version: '3'
 
 networks:
   internal:
-    external: true
+    external: false
   proxy:
     external: true
 
 services:
-  redis:
+  cloud_redis:
     image: redis:alpine
+    container_name: cloud_redis
     restart: always
     networks:
       - internal
 
-  app:
+  cloud_app:
     image: nextcloud:fpm-alpine
+    container_name: cloud_app
     restart: always
     volumes:
-      - ./nextcloud:/var/www/html
+      - ./cloud:/var/www/html
     environment:
-      - REDIS_HOST=redis
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_HOST: cloud_db
+      REDIS_HOST: cloud_redis
     depends_on:
-      - redis
+      - cloud_redis
     networks:
       - internal
 
-  web:
+  cloud_web:
     image: nginx:alpine
+    container_name: cloud_web
     restart: always
     volumes:
-      - ./nextcloud:/var/www/html:ro
+      - ./cloud:/var/www/html:ro
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.services.nextcloud.loadbalancer.server.port=80'
       - 'traefik.http.routers.nextcloud.entrypoints=web'
       - 'traefik.http.routers.nextcloud.rule=Host(`${FQDN}`)'
-#      - 'traefik.http.middlewares.nextcloud-https-redirect.redirectscheme.scheme=websecure'
       - 'traefik.http.routers.nextcloud.middlewares=nextcloud-https-redirect'
       - 'traefik.http.routers.nextcloud-secure.entrypoints=websecure'
       - 'traefik.http.routers.nextcloud-secure.rule=Host(`${FQDN}`)'
       - 'traefik.http.routers.nextcloud-secure.tls=true'
-#      - "traefik.http.middlewares.nextcloud-sts.headers.stsSeconds=31536000"
-#      - "traefik.http.middlewares.nextcloud-sts.headers.stsIncludeSubdomains=true"
-#      - "traefik.http.middlewares.nextcloud-sts.headers.stsPreload=true"
-#      - "traefik.http.middlewares.nextcloud-chain.chain.middlewares=https-redirect@file,nex>
-#      - "traefik.http.routers.nextcloud-secure.middlewares=basicauth"
       - "traefik.http.middlewares.nextcloud-https-redirect.redirectscheme.scheme=https"
     depends_on:
-      - app
+      - cloud_app
     networks:
       - internal
       - proxy
 
-  cron:
+  cloud_cron:
     image: nextcloud:fpm-alpine
+    container_name: cloud_cron
     restart: always
     volumes:
-      - ./nextcloud:/var/www/html
+      - ./cloud:/var/www/html
     entrypoint: /cron.sh
     depends_on:
-      - redis
+      - cloud_redis
     networks:
       - internal
+
+  cloud_db:
+    image: mariadb
+    container_name: cloud_db
+    restart: always
+    init: true
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - ./db:/var/lib/mysql
+    networks:
+      - internal
+
+  cloud_myadmin:
+    image: phpmyadmin
+    container_name: cloud_admin_db
+    restart: always
+    depends_on:
+      - cloud_db
+    ports:
+      - "83:83"
+    networks:
+      - proxy
+      - internal
+    environment:
+      - PMA_ARBITRARY=1
